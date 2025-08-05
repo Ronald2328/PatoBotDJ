@@ -28,20 +28,11 @@ class MusicBot(commands.Bot):
         self.autoplay_enabled = {}
 
     async def setup_hook(self):
-        node = wavelink.Node(
-            bot=self,
-            host=os.getenv("LAVALINK_HOST", "localhost"),
-            port=int(os.getenv("LAVALINK_PORT", "2333")),
+        nodes = [wavelink.Node(
+            uri=f'http://{os.getenv("LAVALINK_HOST", "localhost")}:{os.getenv("LAVALINK_PORT", "2333")}',
             password=os.getenv("LAVALINK_PASSWORD", "youshallnotpass"),
-            https=False,
-            heartbeat=30,
-            region="us_central",
-            spotify=None,
-            identifier="MAIN",
-            dumps=None,
-            resume_key=None
-        )
-        await wavelink.NodePool.connect(node=node, client=self)
+        )]
+        await wavelink.Pool.connect(nodes=nodes, client=self)
         await self.tree.sync()
         logger.info(f"Sincronizados {len(self.tree.get_commands())} comandos slash!")
 
@@ -55,8 +46,8 @@ async def on_ready():
 
 
 @bot.event
-async def on_wavelink_node_ready(node: wavelink.Node):
-    logger.info(f"Nodo {node.identifier} está listo!")
+async def on_wavelink_node_ready(payload: wavelink.NodeReadyEventPayload):
+    logger.info(f"Nodo {payload.node.identifier} está listo!")
 
 
 @bot.tree.command(name="play", description="Reproduce una canción")
@@ -83,10 +74,10 @@ async def play(interaction: discord.Interaction, busqueda: str):
             )
             return
 
-        tracks = await wavelink.YouTubeTrack.search(query=busqueda, return_first=False)
+        tracks = await wavelink.YouTubeTrack.search(busqueda)
 
         if not tracks:
-            tracks = await wavelink.SoundCloudTrack.search(query=busqueda, return_first=False)
+            tracks = await wavelink.SoundCloudTrack.search(busqueda)
 
         if not tracks:
             await interaction.followup.send(
@@ -292,7 +283,7 @@ async def radio(interaction: discord.Interaction, genero_o_artista: str):
         else:
             player: wavelink.Player = interaction.guild.voice_client
 
-        tracks = await wavelink.SoundCloudTrack.search(query=genero_o_artista, return_first=False)
+        tracks = await wavelink.SoundCloudTrack.search(genero_o_artista)
 
         if not tracks:
             await interaction.followup.send(
@@ -327,21 +318,23 @@ async def radio(interaction: discord.Interaction, genero_o_artista: str):
 
 
 @bot.event
-async def on_wavelink_track_end(player: wavelink.Player, track: wavelink.Track, reason):
-    if reason == "FINISHED":
+async def on_wavelink_track_end(payload: wavelink.TrackEndEventPayload):
+    player = payload.player
+
+    if payload.reason == "finished":
         if not player.queue.is_empty:
             next_track = player.queue.get()
             await player.play(next_track)
             logger.info(f"Playing next track: {next_track.title}")
         elif player.guild.id in bot.autoplay_enabled:
             try:
-                if track:
-                    search = track.title.split(" - ")[0]
-                    tracks = await wavelink.SoundCloudTrack.search(query=search, return_first=False)
+                if payload.track:
+                    search = payload.track.title.split(" - ")[0]
+                    tracks = await wavelink.SoundCloudTrack.search(search)
 
                     if tracks:
                         for t in tracks[:3]:
-                            if t.title != track.title:
+                            if t.title != payload.track.title:
                                 player.queue.put(t)
                                 break
 
