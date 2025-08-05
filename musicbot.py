@@ -29,7 +29,8 @@ class MusicBot(commands.Bot):
 
     async def setup_hook(self):
         node = wavelink.Node(
-            uri=f'http://{os.getenv("LAVALINK_HOST", "localhost")}:{os.getenv("LAVALINK_PORT", "2333")}',
+            host=os.getenv("LAVALINK_HOST", "localhost"),
+            port=int(os.getenv("LAVALINK_PORT", "2333")),
             password=os.getenv("LAVALINK_PASSWORD", "youshallnotpass"),
         )
         await wavelink.NodePool.connect(node=node, client=self)
