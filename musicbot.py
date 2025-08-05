@@ -32,6 +32,15 @@ async def create_app():
     app.router.add_get("/health", health_check)
     return app
 
+async def start_health_server():
+    port = int(os.getenv("PORT", 8080))
+    app = await create_app()
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    logger.info(f"Servidor de healthcheck iniciado en puerto {port}")
+
 class MusicBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
@@ -45,15 +54,6 @@ class MusicBot(commands.Bot):
         await wavelink.NodePool.connect(node=node, client=self)
         await self.tree.sync()
         logger.info(f"Sincronizados {len(self.tree.get_commands())} comandos slash!")
-        
-        # Iniciar servidor de healthcheck
-        port = int(os.getenv("PORT", 8080))
-        app = await create_app()
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', port)
-        await site.start()
-        logger.info(f"Servidor de healthcheck iniciado en puerto {port}")
 
 
 bot = MusicBot()
@@ -365,10 +365,16 @@ async def on_wavelink_track_end(payload: wavelink.TrackEndEventPayload):
                 logger.error(f"Autoplay error: {e}")
 
 
-if __name__ == "__main__":
+async def main():
+    # Iniciar servidor de healthcheck primero
+    asyncio.create_task(start_health_server())
+    
     token = os.getenv("DISCORD_TOKEN")
     if not token:
         logger.error("No se encontró DISCORD_TOKEN en el archivo .env")
         exit(1)
 
-    bot.run(token)
+    await bot.start(token)
+
+if __name__ == "__main__":
+    asyncio.run(main())
