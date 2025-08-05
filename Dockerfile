@@ -23,6 +23,6 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 RUN chmod +x start.sh
 
-EXPOSE 2333 8080
+EXPOSE 2333
 
 CMD ["./start.sh"]

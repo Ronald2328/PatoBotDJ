@@ -5,7 +5,6 @@ import asyncio
 import os
 import logging
 from dotenv import load_dotenv
-from aiohttp import web
 
 load_dotenv()
 
@@ -22,24 +21,6 @@ intents.message_content = True
 intents.guilds = True
 intents.voice_states = True
 
-
-async def health_check(request):
-    return web.Response(text="OK", status=200)
-
-async def create_app():
-    app = web.Application()
-    app.router.add_get("/", health_check)
-    app.router.add_get("/health", health_check)
-    return app
-
-async def start_health_server():
-    port = int(os.getenv("PORT", 8080))
-    app = await create_app()
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    logger.info(f"Servidor de healthcheck iniciado en puerto {port}")
 
 class MusicBot(commands.Bot):
     def __init__(self):
@@ -365,16 +346,10 @@ async def on_wavelink_track_end(payload: wavelink.TrackEndEventPayload):
                 logger.error(f"Autoplay error: {e}")
 
 
-async def main():
-    # Iniciar servidor de healthcheck primero
-    asyncio.create_task(start_health_server())
-    
+if __name__ == "__main__":
     token = os.getenv("DISCORD_TOKEN")
     if not token:
         logger.error("No se encontró DISCORD_TOKEN en el archivo .env")
         exit(1)
 
-    await bot.start(token)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    bot.run(token)
