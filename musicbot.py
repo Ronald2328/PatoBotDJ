@@ -46,8 +46,8 @@ async def on_ready():
 
 
 @bot.event
-async def on_wavelink_node_ready(payload: wavelink.NodeReadyEventPayload):
-    logger.info(f"Nodo {payload.node.identifier} está listo!")
+async def on_wavelink_node_ready(node: wavelink.Node):
+    logger.info(f"Nodo {node.identifier} está listo!")
 
 
 @bot.tree.command(name="play", description="Reproduce una canción")
@@ -318,23 +318,21 @@ async def radio(interaction: discord.Interaction, genero_o_artista: str):
 
 
 @bot.event
-async def on_wavelink_track_end(payload: wavelink.TrackEndEventPayload):
-    player = payload.player
-
-    if payload.reason == "finished":
+async def on_wavelink_track_end(player: wavelink.Player, track: wavelink.Track, reason):
+    if reason == "FINISHED":
         if not player.queue.is_empty:
             next_track = player.queue.get()
             await player.play(next_track)
             logger.info(f"Playing next track: {next_track.title}")
         elif player.guild.id in bot.autoplay_enabled:
             try:
-                if payload.track:
-                    search = payload.track.title.split(" - ")[0]
+                if track:
+                    search = track.title.split(" - ")[0]
                     tracks = await wavelink.SoundCloudTrack.search(query=search, return_first=False)
 
                     if tracks:
                         for t in tracks[:3]:
-                            if t.title != payload.track.title:
+                            if t.title != track.title:
                                 player.queue.put(t)
                                 break
 
