@@ -38,13 +38,11 @@ class MusicBot(commands.Bot):
         self.autoplay_enabled = {}
 
     async def setup_hook(self):
-        nodes = [
-            wavelink.Node(
-                uri=f'http://{os.getenv("LAVALINK_HOST", "localhost")}:{os.getenv("LAVALINK_PORT", "2333")}',
-                password=os.getenv("LAVALINK_PASSWORD", "youshallnotpass"),
-            )
-        ]
-        await wavelink.Pool.connect(nodes=nodes, client=self)
+        node = wavelink.Node(
+            uri=f'http://{os.getenv("LAVALINK_HOST", "localhost")}:{os.getenv("LAVALINK_PORT", "2333")}',
+            password=os.getenv("LAVALINK_PASSWORD", "youshallnotpass"),
+        )
+        await wavelink.NodePool.connect(node=node, client=self)
         await self.tree.sync()
         logger.info(f"Sincronizados {len(self.tree.get_commands())} comandos slash!")
         
@@ -95,10 +93,10 @@ async def play(interaction: discord.Interaction, busqueda: str):
             )
             return
 
-        tracks = await wavelink.YouTubeTrack.search(busqueda)
+        tracks = await wavelink.YouTubeTrack.search(query=busqueda, return_first=False)
 
         if not tracks:
-            tracks = await wavelink.SoundCloudTrack.search(busqueda)
+            tracks = await wavelink.SoundCloudTrack.search(query=busqueda, return_first=False)
 
         if not tracks:
             await interaction.followup.send(
@@ -304,7 +302,7 @@ async def radio(interaction: discord.Interaction, genero_o_artista: str):
         else:
             player: wavelink.Player = interaction.guild.voice_client
 
-        tracks = await wavelink.SoundCloudTrack.search(genero_o_artista)
+        tracks = await wavelink.SoundCloudTrack.search(query=genero_o_artista, return_first=False)
 
         if not tracks:
             await interaction.followup.send(
@@ -351,7 +349,7 @@ async def on_wavelink_track_end(payload: wavelink.TrackEndEventPayload):
             try:
                 if payload.track:
                     search = payload.track.title.split(" - ")[0]
-                    tracks = await wavelink.SoundCloudTrack.search(search)
+                    tracks = await wavelink.SoundCloudTrack.search(query=search, return_first=False)
 
                     if tracks:
                         for t in tracks[:3]:
